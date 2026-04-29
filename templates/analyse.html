@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row g-4">
+        <div class="col-md-4">
+            <div class="card p-3 shadow-sm border-0 bg-light h-100">
+                <h5 class="mb-3 text-center text-primary fw-bold">
+                    <i class="fas fa-sliders-h me-2"></i>Contrôles
+                </h5>
+                <form action="/analyse" method="GET">
+                    <div class="mb-3">
+                        <label class="fw-bold small text-muted">Marché</label>
+                        <select name="marche" class="form-select shadow-none border-2">
+                            {% for m in marches %}
+                            <option value="{{ m }}" {% if m == sel_m %}selected{% endif %}>{{ m }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="fw-bold small text-muted">Produit Alimentaire</label>
+                        <select name="aliment" class="form-select shadow-none border-2">
+                            {% for a in aliments %}
+                            <option value="{{ a }}" {% if a == sel_a %}selected{% endif %}>{{ a }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary w-100 shadow-sm mb-2 fw-bold">
+                        <i class="fas fa-sync-alt me-2"></i>Calculer
+                    </button>
+                    
+                    <a href="/" class="btn btn-success w-100 shadow-sm fw-bold">
+                        <i class="fas fa-plus-circle me-2"></i>Ajouter un relevé
+                    </a>
+                </form>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            {% if stats %}
+            <div class="card p-4 shadow-sm border-0 h-100 border-start border-primary border-5">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h2 class="text-dark fw-bold mb-0">{{ stats.produit }}</h2>
+                        <span class="text-muted"><i class="fas fa-map-marker-alt me-1"></i>{{ stats.marche }}</span>
+                    </div>
+                    <div class="text-end">
+                        <span class="badge rounded-pill bg-primary px-3 py-2">{{ stats.count }} entrées</span>
+                    </div>
+                </div>
+                <hr class="my-4">
+                <div class="row text-center">
+                    <div class="col-6 col-lg-3 mb-3 border-end">
+                        <small class="text-uppercase text-muted fw-bold d-block mb-1">Moyenne</small>
+                        <span class="h3 text-primary fw-bold">{{ stats.mean|round(1) }}</span>
+                    </div>
+                    <div class="col-6 col-lg-3 mb-3 border-end">
+                        <small class="text-uppercase text-muted fw-bold d-block mb-1">Médiane</small>
+                        <span class="h3 text-dark fw-bold">{{ stats.median }}</span>
+                    </div>
+                    <div class="col-6 col-lg-3 mb-3 border-end">
+                        <small class="text-uppercase text-muted fw-bold d-block mb-1">Mode</small>
+                        <span class="h3 text-dark fw-bold">{{ stats.mode }}</span>
+                    </div>
+                    <div class="col-6 col-lg-3 mb-3">
+                        <small class="text-uppercase text-muted fw-bold d-block mb-1">Écart-type</small>
+                        <span class="h3 text-danger fw-bold">{{ stats.std|round(1) }}</span>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="alert alert-info border-0 shadow-sm d-flex align-items-center h-100">
+                <i class="fas fa-info-circle fa-2x me-3"></i>
+                <div>
+                    <h5 class="mb-0 text-dark fw-bold">Prêt pour l'analyse ?</h5>
+                    <p class="mb-0 text-muted">Sélectionnez un marché et un produit pour générer le rapport.</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if stats %}
+    <div class="row mt-4 g-4">
+        {% for chart_id, title in [('barChart', 'Tendances Centrales'), ('dispersionChart', 'Dispersion'), ('shapeChart', 'Analyse de Forme'), ('pieChart', 'Répartition')] %}
+        <div class="col-md-6 col-xl-3">
+            <div class="card p-3 shadow-sm border-0 h-100 bg-white text-center">
+                <h6 class="fw-bold text-muted border-bottom pb-2 mb-3">{{ title }}</h6>
+                <div style="position: relative; height:200px;">
+                    <canvas id="{{ chart_id }}"></canvas>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="card p-0 shadow-sm border-0 mt-4 mb-5 overflow-hidden">
+        <div class="card-header bg-white py-3">
+            <h5 class="mb-0 fw-bold text-secondary">
+                <i class="fas fa-table me-2 text-primary"></i>Détail des données
+            </h5>
+        </div>
+        <div class="table-responsive" style="max-height: 350px;">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-4">Produit</th>
+                        <th>Marché</th>
+                        <th class="text-end">Prix (FCFA)</th>
+                        <th class="text-center">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for d in donnees %}
+                    <tr>
+                        <td class="ps-4 fw-medium">{{ d.produit }}</td>
+                        <td><span class="badge bg-light text-dark border">{{ d.marche }}</span></td>
+                        <td class="text-end fw-bold text-primary">{{ d.prix|round(0) }}</td>
+                        <td class="text-center">
+                            <form action="{{ url_for('supprimer', id=d.id) }}" method="POST" onsubmit="return confirm('Supprimer ce relevé définitivement ?');">
+                                <input type="hidden" name="marche" value="{{ sel_m }}">
+                                <input type="hidden" name="aliment" value="{{ sel_a }}">
+                                <button type="submit" class="btn btn-sm btn-outline-danger border-0">
+                                    <i class="fas fa-trash-alt me-1"></i>Supprimer
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Données transmises par Flask
+            const stats = {
+                m: {{ stats.mean }}, med: {{ stats.median }}, mod: {{ stats.mode }},
+                std: {{ stats.std }}, var: {{ stats.var }},
+                skw: {{ stats.skew|default(0) }}, kur: {{ stats.kurt|default(0) }}
+            };
+
+            const config = {
+                barChart: { type: 'bar', labels: ['Moyenne', 'Médiane', 'Mode'], data: [stats.m, stats.med, stats.mod], color: '#3498db' },
+                dispersionChart: { type: 'polarArea', labels: ['Écart-type', 'Variation'], data: [stats.std, Math.sqrt(stats.var)], color: '#e74c3c' },
+                shapeChart: { type: 'radar', labels: ['Asymétrie', 'Aplatissement'], data: [stats.skw, stats.kur], color: '#34495e' },
+                pieChart: { type: 'pie', labels: ['Moyenne', 'Médiane', 'Mode'], data: [stats.m, stats.med, stats.mod], color: '#f1c40f' }
+            };
+
+            Object.keys(config).forEach(id => {
+                const cfg = config[id];
+                new Chart(document.getElementById(id), {
+                    type: cfg.type,
+                    data: {
+                        labels: cfg.labels,
+                        datasets: [{
+                            data: cfg.data,
+                            backgroundColor: cfg.type === 'pie' ? ['#3498db', '#1abc9c', '#f1c40f'] : cfg.color + '33',
+                            borderColor: cfg.color,
+                            borderWidth: 2,
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: (cfg.type !== 'bar') } }
+                    }
+                });
+            });
+        });
+    </script>
+    {% endif %}
+</div>
+{% endblock %}
